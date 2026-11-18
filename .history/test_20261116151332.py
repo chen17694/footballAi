@@ -1,0 +1,26 @@
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+
+llm = ChatOpenAI(
+    model_name="qwen3.8-max",
+    api_key='sk-yFOTmuKp5mZee1kP6ZrS3FiCZqy63wvckE0fiAq0JLgu4fuZ',
+    base_url='https://globalai.vip/v1',
+    timeout=240
+)
+
+SYSTEM_PROMPT = """你是足球情报记者，负责收集关于球队的新闻动态。"""
+
+
+def speak() -> str:
+
+    prompt = f"""## 请收集关于保加利亚媒体关于保加利亚男足国家队近期的新闻动态"""
+
+    result = llm.invoke([
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=prompt),
+    ])
+    return result.content
+
+if __name__ == "__main__":
+    news = speak()
+    print(news)

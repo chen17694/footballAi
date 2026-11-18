@@ -1,0 +1,1 @@
+from crawler.sportsmole import get_article

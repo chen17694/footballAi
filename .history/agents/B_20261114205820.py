@@ -1,0 +1,42 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+# api_key=sk-HSfXQQYy45DeR1SG1vCi78Qkntf7RVtKURnidI6eoG3KG6SE
+# base_url=https://tdyun.ai
+llm = ChatOpenAI(
+    model_name="gpt-6-astra",
+    temperature=0.6,
+    api_key='sk-HSfXQQYy45DeR1SG1vCi78Qkntf7RVtKURnidI6eoG3KG6SE',
+    base_url='https://globalai.vip/v1',
+    timeout=240
+)
+
+SYSTEM_PROMPT = """你是足球分析师B，立场是支持受让方（弱队/冷门方）不败或获胜。
+从情报、数据、盘口中寻找支持受让方的证据，并针对对方观点进行反驳。
+观点要有理有据，不可捏造数据，但可以对数据做有利于己方的解读。
+控制在300字以内。"""
+
+
+def speak(report: str, history: list, round_num: int) -> str:
+    history_text = "\n\n".join(
+        f"【{d['speaker']}·第{d['round']}轮】{d['content']}"
+        for d in history
+    ) if history else "（暂无辩论记录，请开始首轮发言）"
+
+    prompt = f"""## 比赛资料
+{report}
+
+## 辩论记录
+{history_text}
+
+请以受让方支持者的立场，进行第{round_num}轮发言。
+- 若是首轮，陈述你的核心论点和关键证据
+- 若非首轮，先针对A上一轮的观点逐一反驳，再补充己方新论据"""
+
+    result = llm.invoke([
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=prompt),
+    ])
+    return result.content

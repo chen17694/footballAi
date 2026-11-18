@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script>
+        function secureShuffle(arr) {
+        const a = arr.slice();
+        const rand = new Uint32Array(1);
+        for (let i = a.length - 1; i > 0; i--) {
+            // 拒绝采样消除取模偏差
+            const max = Math.floor(0xFFFFFFFF / (i + 1)) * (i + 1);
+            let x;
+            do {
+            crypto.getRandomValues(rand);
+            x = rand[0];
+            } while (x >= max);
+            const j = x % (i + 1);
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+        }
+        const arr = secureShuffle( [...Array(300).fill(1), ...Array(300).fill(0)])
+
+        function main() {
+            const i = Math.floor(Math.random() * arr.length);
+
+            const val = arr.splice(i, 1)[0];
+            console.log(`抽到: ${val}, 剩余: ${arr.length}`);
+        }
+    </script>
+</head>
+<body>
+<button onclick="main()">点击进入</button>
+</body>
+</html>
