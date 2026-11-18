@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """足球辩论室 - 本地 Web 可视化后端。
 
-启动： python web/server.py   然后浏览器打开 http://127.0.0.1:8765
+启动： python web/server.py   然后浏览器打开 http://127.0.0.1:8766
 """
 import sys
 import os
@@ -146,4 +146,4 @@ async def debate_stream(match_id: str = Query(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8765)
+    uvicorn.run(app, host="127.0.0.1", port=8766)

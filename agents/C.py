@@ -9,7 +9,7 @@ from agents._retry import call_with_retry
 from agents._react import run_react
 
 llm = ChatOpenAI(
-    model_name="gpt-6-astra",
+    model_name="gpt-6.2-astra",
     api_key='sk-yFOTmuKp5mZee1kP6ZrS3FiCZqy63wvckE0fiAq0JLgu4fuZ',
     base_url='https://globalai.vip/v1',
     timeout=240
@@ -77,6 +77,39 @@ def _split_verdict_and_risks(text: str) -> tuple[list, str]:
         if isinstance(data, dict) and isinstance(data.get("risks"), list):
             head = text[:fm.start()].rstrip().rstrip("*").rstrip()
             return _normalize_risks(data["risks"]), head or text
+
+    # 形式三：整段文本就是裸 JSON 对象（无代码围栏）
+    stripped = text.strip()
+    if stripped.startswith("{"):
+        try:
+            data = json.loads(stripped)
+        except Exception:  # noqa: BLE001
+            # 尝试截取第一个完整 JSON 对象
+            depth, end_pos = 0, -1
+            for i, ch in enumerate(stripped):
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end_pos = i
+                        break
+            if end_pos != -1:
+                try:
+                    data = json.loads(stripped[:end_pos + 1])
+                except Exception:  # noqa: BLE001
+                    data = {}
+            else:
+                data = {}
+        if isinstance(data, dict) and isinstance(data.get("risks"), list):
+            # 把非 risks 字段拼成可读的裁定文本
+            verdict_parts = []
+            for key in ("裁定", "verdict", "推荐方向", "理由", "依据范围"):
+                val = data.get(key)
+                if val:
+                    verdict_parts.append(f'"{key}": {json.dumps(val, ensure_ascii=False)}')
+            verdict_text = "{\n  " + ",\n  ".join(verdict_parts) + "\n}" if verdict_parts else text
+            return _normalize_risks(data["risks"]), verdict_text
 
     return [], text
 

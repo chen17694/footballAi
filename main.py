@@ -17,8 +17,8 @@ import agents.D as D
 from pathlib import Path
 from config import OKOOO_RECENT_N, OKOOO_COOKIE, MATCHES, SELECTION_COUNT
 
-MAX_ROUNDS = 2   # A/B 初始辩论轮次
-MAX_JUDGE  = 2   # judge_c 裁定次数上限（首次裁定算第 1 次，兜底防止无限循环）
+MAX_ROUNDS = 6   # A/B 初始辩论轮次
+MAX_JUDGE  = 3   # judge_c 裁定次数上限（首次裁定算第 1 次，兜底防止无限循环）
 
 
 # ===== 第一步：收集所有比赛的报告（并行，一次跑完）=====
@@ -35,15 +35,15 @@ def collect_reports():
     missing = [m for m in MATCHES if not (REPORT_DIR / f"{m['OKOOO_MATCH_ID']}_report.md").exists()]
 
     # intel_map = data_map = hand_map = handicap_rules = None
-    intel_map = hand_map = handicap_rules = None
+    intel_map = data_map = hand_map = handicap_rules = None
     if missing:
         intelligence = intelligence_app.invoke({"articles": []})
-        # xgscore = data_app.invoke({"xgscore": []})
+        xgscore = data_app.invoke({"xgscore": []})
         # handicap = handicap_app.invoke({"handicap": []})
         # handicap_rules = Path("handicap.md").read_text(encoding="utf-8")
 
         intel_map = {a["match_id"]: a["content"] for a in intelligence["articles"]}
-        # data_map = {d["match_id"]: d["content"] for d in xgscore["xgscore"]}
+        data_map = {d["match_id"]: d["content"] for d in xgscore["xgscore"]}
         # hand_map = {h["match_id"]: h["content"] for h in handicap["handicap"]}
 
     reports = []
@@ -56,7 +56,7 @@ def collect_reports():
         else:
             content = (
                 f"## 情报\n{intel_map.get(mid, '')}\n\n"
-                # f"## 数据\n{data_map.get(mid, '')}\n\n"
+                f"## 数据\n{data_map.get(mid, '')}\n\n"
                 # f"## 盘口\n{hand_map.get(mid, '')}\n\n"
                 # f"## 盘口规则\n{handicap_rules}"
             )
