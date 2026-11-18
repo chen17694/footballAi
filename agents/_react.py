@@ -8,6 +8,7 @@ from langchain.tools import tool
 from tavily import TavilyClient
 from config import TAVILY_API_KEY
 from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 
 import logging
 
@@ -27,7 +28,7 @@ def search_web(query: str) -> str:
     except Exception as e:  # noqa: BLE001
         return f"搜索失败：{repr(e)[:200]}"
 
-def _get_agent(llm):
+def _get_agent(llm, response_format: str = "text") -> object:
     key = id(llm)
     if key not in _agent_cache:
 
@@ -38,16 +39,19 @@ def _get_agent(llm):
             model=llm,
             tools=[search_web],
             system_prompt=system_prompt,
+            response_format=ToolStrategy(response_format),
         )
     return _agent_cache[key]
 
 
-def run_react(llm, messages: list, fallback_invoke=None) -> str:
+def run_react(llm, messages: list, fallback_invoke=None, response_format: str = "text") -> str:
     """用 ReAct agent 运行，返回最终回答文本。
     失败时降级到 fallback_invoke(messages)，或直接 llm.invoke(messages)。
     """
     try:
-        agent = _get_agent(llm)
+        agent = _get_agent(llm, response_format=response_format)
+        print('agent-------------------------')
+        print(response_format)
         result = agent.invoke({"messages": messages})
         # 取最后一条 AIMessage 的内容
         final = result["messages"][-1].content

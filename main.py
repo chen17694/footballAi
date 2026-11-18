@@ -17,8 +17,8 @@ import agents.D as D
 from pathlib import Path
 from config import OKOOO_RECENT_N, OKOOO_COOKIE, MATCHES, SELECTION_COUNT
 
-MAX_ROUNDS = 6   # A/B 初始辩论轮次
-MAX_JUDGE  = 3   # judge_c 裁定次数上限（首次裁定算第 1 次，兜底防止无限循环）
+MAX_ROUNDS = 2   # A/B 初始辩论轮次
+MAX_JUDGE  = 2   # judge_c 裁定次数上限（首次裁定算第 1 次，兜底防止无限循环）
 
 
 # ===== 第一步：收集所有比赛的报告（并行，一次跑完）=====

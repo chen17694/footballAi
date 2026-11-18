@@ -54,10 +54,12 @@ def judge(report: str, history: list) -> JudgeResult:
         llm,
         messages,
         fallback_invoke=lambda msgs: call_with_retry(llm.invoke, msgs),
+        response_format=JudgeResult
     )
-    # 步骤2：结构化提取 verdict + risks
-    structured_llm = llm.with_structured_output(JudgeResult)
     
-    return call_with_retry(structured_llm.invoke, [
+    print('analysis_text-------------------------')
+    print(analysis_text)
+
+    return call_with_retry(llm.invoke, [
         HumanMessage(content=f"请将以下足球比赛分析整理成结构化裁定（verdict + risks）：\n\n{analysis_text}")
     ])
