@@ -21,9 +21,12 @@ def search_web(query: str):
     """搜索网络获取最新足球赛事信息，包括伤病、阵容、赔率变化、交锋记录等。
     query 应为简洁的英文或中文搜索关键词。"""
     try:
+        print(f"[bold yellow]搜索网络：[/bold yellow]{query}")
         client = TavilyClient(api_key=TAVILY_API_KEY)
         result = client.search(query, max_results=3)
         snippets = [r.get("content", "") for r in result.get("results", [])]
+        print(f"[bold green]搜索结果：[/bold green]{len(snippets)} 条")
+        print("\n".join(f"[dim]{i+1}.[/dim] {s}" for i, s in enumerate(snippets)))
         return "\n\n".join(snippets) if snippets else "未找到相关结果"
     except Exception as e:  # noqa: BLE001
         return f"搜索失败：{repr(e)[:200]}"
