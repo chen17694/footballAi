@@ -21,7 +21,7 @@ class AgentState(TypedDict):
     xgscore: Annotated[list, operator.add]
 
 llm = ChatOpenAI(
-    model_name="claude-fable-5-1",
+    model_name="claude-fable-5-2",
     api_key='sk-yFOTmuKp5mZee1kP6ZrS3FiCZqy63wvckE0fiAq0JLgu4fuZ',
     base_url='https://globalai.vip/v1',
     timeout=240

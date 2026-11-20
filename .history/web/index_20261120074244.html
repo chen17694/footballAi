@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>⚽ 足球辩论室</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --a-color: #4a9eff;
+    --a-bg: #0d2140;
+    --b-color: #ff5f5f;
+    --b-bg: #2a0d0d;
+    --c-color: #ffc048;
+    --c-bg: #2a1f00;
+    --risk-bg: #1f1800;
+    --risk-border: #ffc048;
+    --text: #e8eaf0;
+    --muted: #8891a8;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex; align-items: center; gap: 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: .02em; }
+  header .subtitle { font-size: .8rem; color: var(--muted); }
+
+  /* ── Match selector ── */
+  .controls {
+    padding: 20px 28px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  select {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 8px 14px;
+    font-size: .9rem; cursor: pointer; outline: none; min-width: 200px;
+  }
+  select:focus { border-color: var(--a-color); }
+  button#startBtn {
+    background: var(--a-color); color: #fff; border: none;
+    border-radius: 8px; padding: 9px 22px; font-size: .9rem;
+    font-weight: 600; cursor: pointer; transition: opacity .15s;
+  }
+  button#startBtn:hover { opacity: .85; }
+  button#startBtn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── Personas ── */
+  .personas {
+    display: flex; gap: 14px; padding: 0 28px 20px;
+    flex-wrap: wrap;
+  }
+  .persona {
+    flex: 1; min-width: 160px; max-width: 260px;
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--border);
+  }
+  .persona.a { background: var(--a-bg); border-color: var(--a-color); }
+  .persona.b { background: var(--b-bg); border-color: var(--b-color); }
+  .persona.c { background: var(--c-bg); border-color: var(--c-color); }
+  .persona .avatar { font-size: 2rem; line-height: 1; }
+  .persona .info .name { font-weight: 700; font-size: .95rem; }
+  .persona.a .info .name { color: var(--a-color); }
+  .persona.b .info .name { color: var(--b-color); }
+  .persona.c .info .name { color: var(--c-color); }
+  .persona .info .role { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+  .persona .status {
+    margin-left: auto; font-size: .72rem; padding: 3px 8px;
+    border-radius: 20px; background: var(--border); color: var(--muted);
+    white-space: nowrap;
+  }
+  .persona .status.active { background: #1a3a1a; color: #5fdf5f; }
+
+  /* ── Progress bar ── */
+  .progress-wrap { padding: 0 28px 16px; }
+  .progress-label { font-size: .78rem; color: var(--muted); margin-bottom: 6px; }
+  .progress-bar { background: var(--border); border-radius: 99px; height: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--a-color); border-radius: 99px; transition: width .4s; width: 0; }
+
+  /* ── Chat feed ── */
+  .feed-wrap { padding: 0 28px 60px; }
+  .feed { display: flex; flex-direction: column; gap: 14px; }
+
+  .bubble-row { display: flex; gap: 10px; align-items: flex-start; }
+  .bubble-row.b { flex-direction: row-reverse; }
+  .bubble-row.c { flex-direction: column; align-items: stretch; }
+
+  .avatar-badge {
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+  }
+  .bubble-row.a .avatar-badge { background: var(--a-bg); border: 2px solid var(--a-color); }
+  .bubble-row.b .avatar-badge { background: var(--b-bg); border: 2px solid var(--b-color); }
+
+  .bubble {
+    max-width: 70%; border-radius: var(--radius); padding: 12px 16px;
+    line-height: 1.65; font-size: .88rem; position: relative;
+  }
+  .bubble-row.a .bubble { background: var(--a-bg); border: 1px solid var(--a-color); border-top-left-radius: 4px; }
+  .bubble-row.b .bubble { background: var(--b-bg); border: 1px solid var(--b-color); border-top-right-radius: 4px; }
+  .bubble .speaker-tag {
+    font-size: .72rem; font-weight: 700; margin-bottom: 5px; opacity: .8;
+  }
+  .bubble-row.a .bubble .speaker-tag { color: var(--a-color); }
+  .bubble-row.b .bubble .speaker-tag { color: var(--b-color); }
+  .round-tag {
+    font-size: .68rem; color: var(--muted);
+    margin-top: 5px; text-align: right;
+  }
+
+  /* judge card */
+  .judge-card {
+    background: var(--c-bg); border: 1px solid var(--c-color);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .judge-card .judge-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .judge-card .judge-header .avatar-badge {
+    background: var(--c-bg); border: 2px solid var(--c-color);
+  }
+  .judge-card .judge-header .speaker-tag { color: var(--c-color); font-weight: 700; font-size: .9rem; }
+  .judge-card .verdict-text { font-size: .88rem; line-height: 1.65; white-space: pre-wrap; }
+
+  /* risk card */
+  .risk-card {
+    background: var(--risk-bg); border: 1px solid var(--risk-border);
+    border-radius: var(--radius); padding: 14px 18px; margin-top: 10px;
+  }
+  .risk-card .risk-title {
+    font-size: .8rem; font-weight: 700; color: var(--c-color);
+    display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  }
+  .risk-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: .85rem; padding: 5px 0; border-bottom: 1px solid #2a2200;
+  }
+  .risk-item:last-child { border-bottom: none; }
+  .risk-item .dot { color: var(--c-color); flex-shrink: 0; margin-top: 2px; }
+
+  /* done banner */
+  .done-banner {
+    background: #0d2a0d; border: 1px solid #3a7a3a;
+    border-radius: var(--radius); padding: 14px 18px;
+    text-align: center; color: #6fdf6f; font-weight: 600; font-size: .9rem;
+  }
+
+  /* divider */
+  .round-divider {
+    display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .75rem;
+  }
+  .round-divider::before, .round-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* typing indicator */
+  .typing { display: flex; align-items: center; gap: 5px; padding: 6px 0; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,80%,100% { opacity: .2; } 40% { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:2rem">⚽</span>
+  <div>
+    <div class="subtitle">AI 足球辩论室</div>
+    <h1>主队 vs 客队 · 三方圆桌裁定</h1>
+  </div>
+</header>
+
+<div class="controls">
+  <select id="matchSelect"><option value="">-- 选择比赛 --</option></select>
+  <button id="startBtn" disabled>▶ 开始辩论</button>
+  <span id="statusTxt" style="font-size:.82rem;color:var(--muted)"></span>
+</div>
+
+<div class="personas">
+  <div class="persona a">
+    <div class="avatar">🔵</div>
+    <div class="info"><div class="name">分析师 A</div><div class="role">主队支持者 · 寻找最强进攻理由</div></div>
+    <div class="status" id="statusA">待机</div>
+  </div>
+  <div class="persona b">
+    <div class="avatar">🔴</div>
+    <div class="info"><div class="name">分析师 B</div><div class="role">反方质疑者 · 寻找漏洞与风险</div></div>
+    <div class="status" id="statusB">待机</div>
+  </div>
+  <div class="persona c">
+    <div class="avatar">🟡</div>
+    <div class="info"><div class="name">裁判 C</div><div class="role">客观裁定 · 权衡双方论据</div></div>
+    <div class="status" id="statusC">待机</div>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-label" id="progressLabel">等待开始…</div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<div class="feed-wrap">
+  <div class="feed" id="feed"></div>
+</div>
+
+<script>
+const MAX_ROUNDS = 6;
+let evtSource = null;
+let roundsSeen = new Set();
+
+async function loadMatches() {
+  const res = await fetch('/api/matches');
+  const matches = await res.json();
+  const sel = document.getElementById('matchSelect');
+  matches.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.match_id;
+    opt.textContent = `${m.label}${m.cached ? ' ✓' : ''}  (${m.match_id})`;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById('matchSelect').addEventListener('change', e => {
+  document.getElementById('startBtn').disabled = !e.target.value;
+});
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  const mid = document.getElementById('matchSelect').value;
+  if (!mid) return;
+  startDebate(mid);
+});
+
+function startDebate(matchId) {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+
+  document.getElementById('feed').innerHTML = '';
+  roundsSeen.clear();
+  setProgress(0, '正在连接…');
+  setStatus('A', '待机'); setStatus('B', '待机'); setStatus('C', '待机');
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('statusTxt').textContent = '辩论进行中…';
+
+  evtSource = new EventSource(`/api/debate/stream?match_id=${encodeURIComponent(matchId)}`);
+
+  evtSource.addEventListener('update', e => {
+    const payload = JSON.parse(e.data);
+    handleUpdate(payload);
+  });
+
+  evtSource.addEventListener('done', () => {
+    evtSource.close(); evtSource = null;
+    appendDone();
+    setProgress(100, '辩论结束');
+    setStatus('A', '完成'); setStatus('B', '完成'); setStatus('C', '完成');
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('statusTxt').textContent = '✅ 辩论完成';
+  });
+
+  evtSource.addEventListener('error', e => {
+    if (e.data) {
+      const d = JSON.parse(e.data);
+      document.getElementById('statusTxt').textContent = '❌ ' + d.message;
+    }
+    evtSource.close(); evtSource = null;
+    document.getElementById('startBtn').disabled = false;
+  });
+
+  evtSource.onerror = () => {
+    // 连接断开但没 error event，直接关
+    if (evtSource && evtSource.readyState === EventSource.CLOSED) {
+      document.getElementById('startBtn').disabled = false;
+    }
+  };
+}
+
+function handleUpdate(payload) {
+  const node = payload.node;
+
+  // 插入轮次分隔线
+  for (const msg of payload.messages || []) {
+    if (msg.round && !roundsSeen.has(msg.round) && (msg.speaker === 'A')) {
+      roundsSeen.add(msg.round);
+      appendRoundDivider(msg.round);
+    }
+  }
+
+  if (node === 'debate_a') {
+    setStatus('A', '发言中'); setStatus('B', '等待'); setStatus('C', '等待');
+    for (const msg of payload.messages || []) renderMessage(msg);
+    const pct = Math.min(90, ((payload.round || 1) / MAX_ROUNDS) * 80);
+    setProgress(pct, `第 ${payload.round} 轮辩论…`);
+
+  } else if (node === 'debate_b') {
+    setStatus('A', '等待'); setStatus('B', '发言中'); setStatus('C', '等待');
+    for (const msg of payload.messages || []) renderMessage(msg);
+
+  } else if (node === 'judge_c') {
+    setStatus('A', '等待'); setStatus('B', '等待'); setStatus('C', '裁定中');
+    setProgress(92, '裁判 C 正在裁定…');
+    renderJudge(payload);
+    if (payload.risks && payload.risks.length > 0) {
+      setProgress(60, `发现 ${payload.risks.length} 个待辩风险，继续辩论…`);
+    } else {
+      setProgress(98, '裁定完成，无待辩风险');
+    }
+  }
+
+  scrollToBottom();
+}
+
+function renderMessage(msg) {
+  const cls = msg.speaker.toLowerCase(); // 'a' or 'b'
+  const emoji = cls === 'a' ? '🔵' : '🔴';
+  const name = cls === 'a' ? '分析师 A' : '分析师 B';
+
+  const row = document.createElement('div');
+  row.className = `bubble-row ${cls}`;
+  row.innerHTML = `
+    <div class="avatar-badge">${emoji}</div>
+    <div class="bubble">
+      <div class="speaker-tag">${name}</div>
+      <div>${escHtml(msg.content)}</div>
+      <div class="round-tag">第 ${msg.round} 轮</div>
+    </div>`;
+  document.getElementById('feed').appendChild(row);
+}
+
+function renderJudge(payload) {
+  const card = document.createElement('div');
+  card.className = 'judge-card';
+
+  const hasRisks = payload.risks && payload.risks.length > 0;
+  const riskHtml = hasRisks
+    ? `<div class="risk-card">
+        <div class="risk-title">⚠️ 待辩风险（将交回 A/B 继续辩论）</div>
+        ${payload.risks.map(r => `<div class="risk-item"><span class="dot">▸</span><span>${escHtml(r)}</span></div>`).join('')}
+       </div>`
+    : `<div class="risk-card" style="border-color:#3a7a3a;background:#0d2a0d">
+        <div class="risk-title" style="color:#6fdf6f">✅ 无待辩风险，裁定终止</div>
+       </div>`;
+       console.log(payload.verdict)
+       console.log(typeof payload.verdict)
+  card.innerHTML = `
+    <div class="judge-header">
+      <div class="avatar-badge">🟡</div>
+      <div class="speaker-tag">裁判 C · 裁定</div>
+    </div>
+    <div class="verdict-text">${escHtml(payload.verdict || '')}</div>
+    ${riskHtml}`;
+  document.getElementById('feed').appendChild(card);
+}
+
+function appendRoundDivider(round) {
+  const div = document.createElement('div');
+  div.className = 'round-divider';
+  div.textContent = `第 ${round} 轮`;
+  document.getElementById('feed').appendChild(div);
+}
+
+function appendDone() {
+  const el = document.createElement('div');
+  el.className = 'done-banner';
+  el.textContent = '🏁 辩论结束，所有裁定已完成';
+  document.getElementById('feed').appendChild(el);
+}
+
+function setStatus(who, text) {
+  const el = document.getElementById('status' + who);
+  el.textContent = text;
+  el.className = 'status' + (text === '发言中' || text === '裁定中' ? ' active' : '');
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function scrollToBottom() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+loadMatches();
+</script>
+</body>
+</html>

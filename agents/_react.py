@@ -17,16 +17,41 @@ log = logging.getLogger(__name__)
 _agent_cache: dict = {}  # 按 llm id 缓存，避免重复创建
 
 @tool
-def search_web(query: str):
-    """搜索网络获取最新足球赛事信息，包括伤病、阵容、赔率变化、交锋记录等。
-    query 应为简洁的英文或中文搜索关键词。"""
+def search_web_ch(query: str):
+    """搜索网络获取最新足球赛事信息（中文媒体），包括球队数据、状态、排名、伤病、阵容、新闻动态、交锋记录等。
+    query 应为简洁的中文搜索关键词。"""
     try:
-        print(f"[bold yellow]搜索网络：[/bold yellow]{query}")
+        print(f"[bold yellow]搜索网络（中文）：[/bold yellow]{query}")
         client = TavilyClient(api_key=TAVILY_API_KEY)
-        result = client.search(query, max_results=3)
+        result = client.search(
+            query,
+            max_results=5,
+            search_depth="advanced",
+            time_range="week",
+            include_domains=["leisu.com", "dongqiudi.com", "hupu.com"],
+        )
         snippets = [r.get("content", "") for r in result.get("results", [])]
-        print(f"[bold green]搜索结果：[/bold green]{len(snippets)} 条")
-        print("\n".join(f"[dim]{i+1}.[/dim] {s}" for i, s in enumerate(snippets)))
+      
+        return "\n\n".join(snippets) if snippets else "未找到相关结果"
+    except Exception as e:  # noqa: BLE001
+        return f"搜索失败：{repr(e)[:200]}"
+    
+@tool
+def search_web_us(query: str):
+    """搜索网络获取最新足球赛事信息（英文媒体），包括球队数据、状态、排名、伤病、阵容、新闻动态、交锋记录等。
+    query 应为简洁的英文搜索关键词。"""
+    try:
+        print(f"[bold yellow]搜索网络（英文）：[/bold red]{query}")
+        client = TavilyClient(api_key=TAVILY_API_KEY)
+        result = client.search(
+            query,
+            max_results=5,
+            search_depth="advanced",
+            time_range="week",
+            include_domains=["whoscored.com", "talksport.com", "fotmob.com","onefootball.com","sofascore.com","yahoo.com", "nytimes.com", "sportsmole.co.uk"],
+        )
+        snippets = [r.get("content", "") for r in result.get("results", [])]
+      
         return "\n\n".join(snippets) if snippets else "未找到相关结果"
     except Exception as e:  # noqa: BLE001
         return f"搜索失败：{repr(e)[:200]}"
@@ -34,10 +59,10 @@ def search_web(query: str):
 def _get_agent(llm, response_format: str = "text") -> object:
     key = id(llm)
     if key not in _agent_cache:
-        system_prompt = """你是一名足球分析助手，可以使用提供的工具来查询和分析信息。"""
+        system_prompt = """你是一名足球分析助手，可以使用提供的工具来查询中文媒体和英文媒体的最新信息，并进行分析。"""
         _agent_cache[key] = create_agent(
             model=llm,
-            tools=[search_web],
+            tools=[search_web_ch, search_web_us],
             system_prompt=system_prompt,
         )
     return _agent_cache[key]

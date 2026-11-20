@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>⚽ 足球辩论室</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -164,6 +165,19 @@
   .round-divider::before, .round-divider::after {
     content: ''; flex: 1; height: 1px; background: var(--border);
   }
+
+  /* markdown rendering inside bubbles/cards */
+  .md-content p { margin: 0 0 6px; }
+  .md-content p:last-child { margin-bottom: 0; }
+  .md-content strong { font-weight: 700; }
+  .md-content em { font-style: italic; }
+  .md-content ul, .md-content ol { padding-left: 18px; margin: 4px 0; }
+  .md-content li { margin: 2px 0; }
+  .md-content pre { background: rgba(0,0,0,.35); border-radius: 6px; padding: 8px 10px; overflow-x: auto; margin: 6px 0; }
+  .md-content code { font-family: 'Consolas', monospace; font-size: .82em; background: rgba(0,0,0,.25); padding: 1px 4px; border-radius: 3px; }
+  .md-content pre code { background: none; padding: 0; }
+  .md-content blockquote { border-left: 3px solid var(--border); padding-left: 10px; color: var(--muted); margin: 4px 0; }
+  .md-content h1,.md-content h2,.md-content h3 { font-size: 1em; font-weight: 700; margin: 6px 0 2px; }
 
   /* typing indicator */
   .typing { display: flex; align-items: center; gap: 5px; padding: 6px 0; }
@@ -332,7 +346,7 @@ function renderMessage(msg) {
     <div class="avatar-badge">${emoji}</div>
     <div class="bubble">
       <div class="speaker-tag">${name}</div>
-      <div>${escHtml(msg.content)}</div>
+      <div class="md-content">${renderMd(msg.content)}</div>
       <div class="round-tag">第 ${msg.round} 轮</div>
     </div>`;
   document.getElementById('feed').appendChild(row);
@@ -346,18 +360,19 @@ function renderJudge(payload) {
   const riskHtml = hasRisks
     ? `<div class="risk-card">
         <div class="risk-title">⚠️ 待辩风险（将交回 A/B 继续辩论）</div>
-        ${payload.risks.map(r => `<div class="risk-item"><span class="dot">▸</span><span>${escHtml(r)}</span></div>`).join('')}
+        ${payload.risks.map(r => `<div class="risk-item"><span class="dot">▸</span><span class="md-content">${renderMd(r)}</span></div>`).join('')}
        </div>`
     : `<div class="risk-card" style="border-color:#3a7a3a;background:#0d2a0d">
         <div class="risk-title" style="color:#6fdf6f">✅ 无待辩风险，裁定终止</div>
        </div>`;
-
+       console.log(payload.verdict)
+       console.log(typeof payload.verdict)
   card.innerHTML = `
     <div class="judge-header">
       <div class="avatar-badge">🟡</div>
       <div class="speaker-tag">裁判 C · 裁定</div>
     </div>
-    <div class="verdict-text">${escHtml(payload.verdict || '')}</div>
+    <div class="verdict-text md-content">${renderMd(payload.verdict || '')}</div>
     ${riskHtml}`;
   document.getElementById('feed').appendChild(card);
 }
@@ -389,6 +404,10 @@ function setProgress(pct, label) {
 
 function escHtml(s) {
   return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function renderMd(s) {
+  return marked.parse(s || '', { breaks: true, gfm: true });
 }
 
 function scrollToBottom() {

@@ -1,4 +1,4 @@
-import sys, os, json, re
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_openai import ChatOpenAI
@@ -15,7 +15,6 @@ llm = ChatOpenAI(
     timeout=240
 )
 
-
 class JudgeResult(BaseModel):
     verdict: str = Field(description="完整裁定文本，包含哪方论据更有说服力、最终结论和推荐方向")
     risks: List[str] = Field(
@@ -29,89 +28,6 @@ SYSTEM_PROMPT = """你是足球分析裁定官C，没有立场，客观公正。
 若发现A和B尚未充分讨论的重要风险，在risks中列出，供他们继续辩论；若无需继续辩论，risks返回空列表。
 你拥有联网搜索工具，裁定前可主动搜索核实双方论据中的关键事实（伤病、阵容、赔率变化等）。"""
 
-
-def _normalize_risks(items) -> list:
-    """把模型给的 risks 数组统一成 List[str]。"""
-    risks = []
-    for item in items if isinstance(items, list) else []:
-        if isinstance(item, dict):
-            risk = str(item.get("risk", "")).strip()
-            detail = str(item.get("detail", "")).strip()
-            if risk and detail:
-                risks.append(f"{risk}：{detail}")
-            elif risk or detail:
-                risks.append(risk or detail)
-        elif isinstance(item, str) and item.strip():
-            risks.append(item.strip())
-    return risks
-
-
-def _split_verdict_and_risks(text: str) -> tuple[list, str]:
-    """从 C 的自由文本里拆出裁定正文与 risks 列表。
-
-    兼容两种模型输出：``**risks：** [ ... ]``，以及结尾的 ```json {...} ``` 块里的
-    ``"risks": [...]``。解析失败时视为“无待辩风险”，保证裁定一定返回 JudgeResult，
-    不会因为结构不合法而让整个辩论中断。
-    """
-    text = (text or "").strip()
-
-    # 形式一：**risks：** + JSON 数组
-    m = re.search(r"\*{0,2}\s*risks\s*\*{0,2}\s*[：:]\s*", text, re.I)
-    if m:
-        head = text[:m.start()].rstrip().rstrip("*").rstrip()
-        tail = text[m.end():].strip()
-        start, end = tail.find("["), tail.rfind("]")
-        if start != -1 and end > start:
-            try:
-                return _normalize_risks(json.loads(tail[start:end + 1])), head or text
-            except Exception:  # noqa: BLE001
-                pass
-        return [], head or text
-
-    # 形式二：结尾的 ```json {...} ``` 块
-    for fm in re.finditer(r"```(?:json)?\s*([\s\S]*?)```", text, re.I):
-        try:
-            data = json.loads(fm.group(1).strip())
-        except Exception:  # noqa: BLE001
-            continue
-        if isinstance(data, dict) and isinstance(data.get("risks"), list):
-            head = text[:fm.start()].rstrip().rstrip("*").rstrip()
-            return _normalize_risks(data["risks"]), head or text
-
-    # 形式三：整段文本就是裸 JSON 对象（无代码围栏）
-    stripped = text.strip()
-    if stripped.startswith("{"):
-        try:
-            data = json.loads(stripped)
-        except Exception:  # noqa: BLE001
-            # 尝试截取第一个完整 JSON 对象
-            depth, end_pos = 0, -1
-            for i, ch in enumerate(stripped):
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        end_pos = i
-                        break
-            if end_pos != -1:
-                try:
-                    data = json.loads(stripped[:end_pos + 1])
-                except Exception:  # noqa: BLE001
-                    data = {}
-            else:
-                data = {}
-        if isinstance(data, dict) and isinstance(data.get("risks"), list):
-            # 把非 risks 字段拼成可读的裁定文本
-            verdict_parts = []
-            for key in ("裁定", "verdict", "推荐方向", "理由", "依据范围"):
-                val = data.get(key)
-                if val:
-                    verdict_parts.append(f'"{key}": {json.dumps(val, ensure_ascii=False)}')
-            verdict_text = "{\n  " + ",\n  ".join(verdict_parts) + "\n}" if verdict_parts else text
-            return _normalize_risks(data["risks"]), verdict_text
-
-    return [], text
 
 
 def judge(report: str, history: list) -> JudgeResult:
@@ -133,16 +49,32 @@ def judge(report: str, history: list) -> JudgeResult:
 """
     messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
 
-    # 只调用一次 LLM（带联网搜索），risks 由本地解析，避免第二次调用拖慢裁定
+    # 第一步：带联网搜索的 ReAct agent 生成裁定分析文本
     analysis_text = run_react(
         llm,
         messages,
         fallback_invoke=lambda msgs: call_with_retry(llm.invoke, msgs),
-        response_format=JudgeResult
     )
 
     if not isinstance(analysis_text, str):
         analysis_text = str(analysis_text or "")
 
-    risks, verdict = _split_verdict_and_risks(analysis_text)
-    return JudgeResult(verdict=verdict or analysis_text, risks=risks)
+    # 第二步：用结构化输出从分析文本中提取 verdict 和 risks，彻底避免正则解析
+    extract_messages = [
+        SystemMessage(content="你是一个信息提取助手，严格按照指定格式提取内容，不添加任何额外内容。"),
+        HumanMessage(content=f"""请从以下裁定分析文本中提取信息：
+
+{analysis_text}
+
+提取规则：
+- verdict：裁定的完整正文，保留所有分析内容，去除risks相关的JSON/代码块部分
+- risks：列出文中提到的"待辩风险"或"尚未充分讨论的风险"，每条一个字符串；若无则返回空列表"""),
+    ]
+
+    try:
+        structured_llm = llm.with_structured_output(JudgeResult)
+        result = structured_llm.invoke(extract_messages)
+        return result
+    except Exception:  # noqa: BLE001
+        # 结构化提取失败时降级：verdict 用原始文本，risks 为空
+        return JudgeResult(verdict=analysis_text, risks=[])
